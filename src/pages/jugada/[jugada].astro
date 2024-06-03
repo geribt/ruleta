@@ -16,47 +16,66 @@ function getCurrentDate() {
 
     return `${year}-${month}-${day} ${hours}:${mins}:${secs}`;
 }
+let gameData; // inicialitzem la variable gameData
 
-let tirada = 10;
-let saldo = 150;
+	let cookie = Astro.cookies.get("ruleta");
+	gameData = JSON.parse(cookie.value); // ull! el valor està a .value
+let saldo = gameData[gameData.length-1].saldo;
+
+const tirada = 10;
 let numeros = ["0","1","2","3","4","5","6","7","8","9","10"];
-let colors = ["vermells","negres"];
+let colors = ["Vermells","Negres"];
+let parells = ["Parells","Imparells"];
 
-
-
+function esNumero(jugada) {
+    return !isNaN(jugada) && isFinite(jugada);
+}
 // funció que retorna una jugada random 
-function jugadaRandom() {
-    return numeros[Math.floor(Math.random() * numeros.length)];     
+function jugadaRandom(jugada) {
+    if(esNumero(jugada)){
+        return numeros[Math.floor(Math.random() * numeros.length)];  
+    }else if(jugada==="Vermells"||jugada==="Negres"){
+        let aleatori = Math.floor(Math.random() * colors.length);
+        return colors[aleatori];
+    }else if(jugada==="Parells"||jugada==="Imparells"){
+        let aleatori = Math.floor(Math.random() * parells.length);
+        return parells[aleatori];
+    }
 }
 
 // funció que calcula quina de les dos jugades rebudes és la guanyadora, retorna "Guanyador" si és la primera, i "Perdedor" si és la segona
 function guanyador(jugada1, jugada2) {
-    if (jugada1 === jugada2) {
+    if(esNumero(jugada1)){
+        if(jugada1===jugada2){
         saldo = saldo+(tirada*10);
         return "Guanyador reps, un x10";
-    } else if (jugada1 % 2 === 0 && jugada2 % 2 === 0) {
+        }else if(jugada1!==0 && jugada2===0){
+            saldo = saldo-tirada;
+            return "Has Perdut la tirada";
+        }else{
+            saldo = saldo-tirada;
+            return "Has Perdut la tirada";
+        }
+    }else{
+        if (jugada1===jugada2){
         saldo = saldo+(tirada*2);
         return "Guanyador, reps un x2";
-    }else if (jugada1 % 2 !== 0 && jugada2 % 2 !== 0){
-        saldo = saldo+(tirada*2);
-        return "Guanyador, reps un x2";
-    }else if (jugada1===jugada2){
-        saldo = saldo+(tirada*2);
-        return "Guanyador, reps un x2";
-    }else if(jugada1 !==0 && jugada2 ===0){
-        saldo = saldo-tirada;
-        return "Has Perdut la tirada";
+        }else{
+            saldo = saldo-tirada;
+            return "Has Perdut la tirada";
+        }
     }
+    
 }
 
 // funció que actualitza la cookie, afegint la informació de la jugada, ordinador i resultat
 // afegim el timestamp actual
 // la cookie sempre es guarda en JSON
-function updateCookie(jugada, ordinador, resultat) {
-    let cookie = Astro.cookies.get("pepati");
+function updateCookie(jugada, ordinador, resultat, saldo) {
+    let cookie = Astro.cookies.get("ruleta");
     let cookieData = JSON.parse(cookie.value);
-    cookieData.push({data: getCurrentDate(), jugada, ordinador, resultat});
-    Astro.cookies.set("pepati", JSON.stringify(cookieData), { path: '/' });
+    cookieData.push({data: getCurrentDate(), jugada, ordinador, resultat, saldo});
+    Astro.cookies.set("ruleta", JSON.stringify(cookieData), { path: '/' });
 }
 
 
@@ -64,18 +83,33 @@ function updateCookie(jugada, ordinador, resultat) {
 const {jugada} = Astro.params;
 
 // calculem jugada random
-const jugadaOrdinador = jugadaRandom();
+const jugadaOrdinador = jugadaRandom(jugada);
 
 // mirem si és guanyador o perdedor
 const resultat = guanyador(jugada, jugadaOrdinador);
 
 // actualitzem la cookie amb la nova jugada
-updateCookie(jugada,jugadaOrdinador, resultat);
+updateCookie(jugada,jugadaOrdinador, resultat, saldo);
 
 
 // html mostra el resultat de la jugada i permet tornars a la pàgina principal
 ---
 
+<style>
+    table{
+        margin-top:20px;
+        background-color:black;
+    }
+    table, tr, td{
+        border: 2px solid red;
+        border-radius:20px;
+        color:white;
+    }
+    td{
+        background-color:red;
+    }
+
+</style>
 <Layout>
 
     <h1>Resultat de la jugada</h1>
@@ -83,9 +117,34 @@ updateCookie(jugada,jugadaOrdinador, resultat);
     <h2>Jugada: {jugada}</h2>
     <h2>Jugada ordinador: {jugadaOrdinador}</h2>
     <h2>Resultat: {resultat}</h2>
+    <h2>Saldo: {saldo}</h2>
 
     <br>
     <a href="/">Tornar</a>
 
+    <div class="mesa-ruleta2" id="mesaRuleta2">
+        <table>
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Jugada</th>
+                    <th>Jugada Ordinador</th>
+                    <th>Resultat</th>
+                    <th>Saldo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {gameData.map(({ data, jugada, ordinador, resultat, saldo }) => (
+                    <tr>
+                        <td>{data}</td>
+                        <td>{jugada}</td>
+                        <td>{ordinador}</td>
+                        <td>{resultat}</td>
+                        <td>{saldo}</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
 
+    </div>
 </Layout>
